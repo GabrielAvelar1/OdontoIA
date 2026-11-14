@@ -1,6 +1,7 @@
 import os
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
+from usage_tracker import increment_usage
 
 # Carrega variáveis de ambiente do .env automaticamente
 load_dotenv()
@@ -31,10 +32,33 @@ DIRETRIZES FUNDAMENTAIS DE SEGURANÇA E CONDUTA CLÍNICA:
    ### 📝 Trechos Literais Utilizados (Comprovação Textual)
    Transcreva OBRIGATORIAMENTE ENTRE ASPAS ("...") os trechos EXATOS que você utilizou do texto para comprovar sua resposta, acompanhados da localização exata de onde cada um foi retirado:
    - Para Livros/Manuais: *"Trecho exato copiado do contexto"* — **[Localização: Nome do Arquivo/Livro, Página X]**
-   - Para Artigos PubMed: *"Trecho exato copiado do contexto"* — **[Localização: Autores (Ano), Revista, Seção X, Link/DOI]**
+   - Para Artigos PubMed/SciELO/Europe PMC: *"Trecho exato copiado do contexto"* — **[Localização: Autores (Ano), Revista, Seção X, Link/DOI]**
 
 4. Fidelidade Absoluta: Não altere o texto dentro das aspas. Ele deve ser a cópia literal dos dados que constam no contexto.
 """
+
+def resolve_api_key(provider: str, custom_key: Optional[str] = None) -> str:
+    """Obtém a chave de API respeitando custom_key > env > streamlit secrets."""
+    if custom_key and custom_key.strip():
+        return custom_key.strip()
+    
+    env_var = f"{provider.upper()}_API_KEY"
+    key = os.getenv(env_var, "").strip()
+    if key:
+        return key
+
+    # Tenta ler do Streamlit Secrets se estiver na nuvem
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets"):
+            if env_var in st.secrets:
+                return str(st.secrets[env_var]).strip()
+            elif provider.lower() == "gemini" and "GEMINI_API_KEY" in st.secrets:
+                return str(st.secrets["GEMINI_API_KEY"]).strip()
+    except Exception:
+        pass
+
+    return ""
 
 def generate_answer(
     query: str,
@@ -52,17 +76,17 @@ def generate_answer(
             "sources": []
         }
 
-    # Monta o contexto textual distinguindo livros e artigos científicos do PubMed
+    # Monta o contexto textual distinguindo livros e artigos científicos
     context_text = ""
     for i, chunk in enumerate(context_chunks, 1):
         if chunk.get("doc_type") == "article":
             context_text += (
-                f"\n--- [FONTE {i} - ARTIGO CIENTÍFICO PUBMED]:\n"
+                f"\n--- [FONTE {i} - ARTIGO CIENTÍFICO]:\n"
                 f"Título: {chunk.get('title', '')}\n"
                 f"Autores: {chunk.get('authors', '')} ({chunk.get('year', '')})\n"
                 f"Revista: {chunk.get('journal', '')}\n"
                 f"DOI: {chunk.get('doi', '')}\n"
-                f"Link PubMed: {chunk.get('url', '')}\n"
+                f"Link: {chunk.get('url', '')}\n"
                 f"Seção: {chunk.get('page', '')}\n"
                 f"Conteúdo:\n{chunk['text']}\n"
             )
@@ -83,14 +107,13 @@ Instrução: Responda à pergunta seguindo estritamente a estrutura solicitada n
 
     # 1. Provedor Google Gemini (com fallback inteligente de modelos)
     if provider.lower() == "gemini":
-        key = (api_key or os.getenv("GEMINI_API_KEY", "")).strip()
+        key = resolve_api_key("gemini", api_key)
         if not key:
             return {
                 "answer": "⚠️ **Chave de API do Gemini não configurada.**\n\nInsira sua chave gratuita do Google AI Studio na barra lateral para gerar a resposta clínica automática.",
                 "sources": context_chunks
             }
 
-        # Modelos mais modernos e com alta disponibilidade na API
         models_to_try = []
         if model_name:
             models_to_try.append(model_name)
@@ -103,12 +126,10 @@ Instrução: Responda à pergunta seguindo estritamente a estrutura solicitada n
             "gemini-pro-latest",
             "gemini-2.5-flash-lite"
         ])
-        # Remove duplicatas preservando ordem
         models_to_try = list(dict.fromkeys(models_to_try))
 
         last_error = None
 
-        # Tentativa com o SDK oficial moderno `google-genai`
         try:
             from google import genai
             from google.genai import types
@@ -125,6 +146,8 @@ Instrução: Responda à pergunta seguindo estritamente a estrutura solicitada n
                         )
                     )
                     if response and response.text:
+                        # Incrementa o contador diário de uso
+                        increment_usage()
                         return {
                             "answer": response.text,
                             "sources": context_chunks,
@@ -143,7 +166,7 @@ Instrução: Responda à pergunta seguindo estritamente a estrutura solicitada n
 
     # 2. Provedor OpenAI
     elif provider.lower() == "openai":
-        key = (api_key or os.getenv("OPENAI_API_KEY", "")).strip()
+        key = resolve_api_key("openai", api_key)
         if not key:
             return {
                 "answer": "⚠️ **Chave de API da OpenAI não configurada.**\n\nInsira sua chave na barra lateral.",
@@ -162,6 +185,7 @@ Instrução: Responda à pergunta seguindo estritamente a estrutura solicitada n
                 ],
                 temperature=0.1
             )
+            increment_usage()
             return {
                 "answer": completion.choices[0].message.content,
                 "sources": context_chunks,
@@ -175,7 +199,7 @@ Instrução: Responda à pergunta seguindo estritamente a estrutura solicitada n
 
     # 3. Provedor Groq
     elif provider.lower() == "groq":
-        key = (api_key or os.getenv("GROQ_API_KEY", "")).strip()
+        key = resolve_api_key("groq", api_key)
         if not key:
             return {
                 "answer": "⚠️ **Chave de API da Groq não configurada.**\n\nInsira sua chave gratuita da Groq na barra lateral.",
@@ -196,6 +220,7 @@ Instrução: Responda à pergunta seguindo estritamente a estrutura solicitada n
                 ],
                 temperature=0.1
             )
+            increment_usage()
             return {
                 "answer": completion.choices[0].message.content,
                 "sources": context_chunks,

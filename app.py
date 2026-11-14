@@ -2,8 +2,9 @@ import os
 import streamlit as st
 from dotenv import load_dotenv
 from rag_engine import OdontoRAG, DOCUMENTS_PATH
-from llm_service import generate_answer
+from llm_service import generate_answer, resolve_api_key
 from academic_search_service import AcademicSearchService
+from usage_tracker import get_today_usage
 
 # Carrega variáveis de ambiente
 load_dotenv()
@@ -74,13 +75,44 @@ with st.sidebar:
     }
     selected_provider = provider_map[provider]
 
-    api_key_env = os.getenv(f"{selected_provider.upper()}_API_KEY", "")
-    api_key_input = st.text_input(
-        f"Chave de API ({provider.split(' ')[0]}):",
-        value=api_key_env,
+    # Verifica se há chave padrão no servidor (.env ou Streamlit Secrets) sem exibi-la
+    has_system_key = bool(resolve_api_key(selected_provider))
+
+    if has_system_key:
+        st.success("🟢 Chave padrão ativa no sistema")
+    else:
+        st.warning("⚠️ Nenhuma chave padrão detectada")
+
+    # Campo opcional para o usuário usar chave própria (NUNCA exibe a chave padrão)
+    custom_key_input = st.text_input(
+        "Substituir por chave pessoal (opcional):",
+        value="",
         type="password",
-        help="Sua chave é carregada automaticamente do arquivo .env."
+        placeholder="Cole sua chave aqui se desejar...",
+        help="Deixe em branco para usar a chave padrão do sistema sem precisar configurar nada."
     )
+
+    if custom_key_input:
+        st.caption("🔑 Utilizando sua chave personalizada para esta sessão.")
+        active_key = custom_key_input
+    else:
+        active_key = None
+
+    st.divider()
+
+    # Monitor de Limite e Consumo Diário (Google Gemini Free Tier)
+    usage = get_today_usage()
+    used_today = usage.get("requests_today", 0)
+    daily_limit = usage.get("daily_limit", 1500)
+    rpm_limit = usage.get("rpm_limit", 15)
+    remaining = max(0, daily_limit - used_today)
+    progress_val = min(1.0, used_today / daily_limit)
+
+    st.subheader("📈 Limite de Uso da IA")
+    st.progress(progress_val)
+    st.caption(f"**Consultas realizadas hoje:** `{used_today}` / `{daily_limit}`")
+    st.caption(f"**Restantes hoje:** `{remaining}` consultas")
+    st.caption(f"⚡ **Capacidade por minuto:** até {rpm_limit} requisições/min")
 
     st.divider()
 
@@ -182,7 +214,7 @@ with tab_live:
                 search_data = academic.live_multi_search_and_prepare_context(
                     question=live_query,
                     source_filter=selected_repo,
-                    api_key=api_key_input,
+                    api_key=active_key,
                     max_articles=4
                 )
 
@@ -210,7 +242,7 @@ with tab_live:
                         query=live_query,
                         context_chunks=chunks_found,
                         provider=selected_provider,
-                        api_key=api_key_input
+                        api_key=active_key
                     )
 
                 st.markdown(response_data["answer"])
@@ -295,7 +327,7 @@ with tab_curado:
                     query=curado_query,
                     context_chunks=relevant_excerpts,
                     provider=selected_provider,
-                    api_key=api_key_input
+                    api_key=active_key
                 )
 
                 st.markdown(response_data["answer"])
@@ -364,7 +396,7 @@ with tab_coletor:
                     source_filter=target_repo,
                     max_per_source=max_articles,
                     study_type="all_evidence",
-                    api_key=api_key_input
+                    api_key=active_key
                 )
                 st.session_state.search_results = results
                 if not results:
