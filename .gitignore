@@ -1,0 +1,10 @@
+# Ambiente virtual
+.venv/
+__pycache__/
+*.pyc
+
+# Arquivos sensíveis de chaves
+.env
+
+# Cache do ChromaDB e modelos locais temporários
+chroma_db/
