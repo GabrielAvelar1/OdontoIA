@@ -9,13 +9,91 @@ from usage_tracker import get_today_usage
 # Carrega variáveis de ambiente
 load_dotenv()
 
-# Configuração da página
+# Configuração da página estilo Google Gemini
 st.set_page_config(
-    page_title="OdontoIA — IA Multi-Bases para Odontologia Baseada em Evidências",
-    page_icon="🦷",
+    page_title="OdontoMind — Inteligência Clínica Baseada em Evidências",
+    page_icon="✨",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
+
+# INJEÇÃO DE CSS ESTILO GEMINI
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+/* Tipografia global moderna */
+html, body, [class*="css"] {
+    font-family: 'Plus+Jakarta+Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Esconde elementos padrão redundantes do Streamlit */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+
+/* Título estilo Gemini com gradiente colorido */
+.gemini-title {
+    font-size: 2.4rem;
+    font-weight: 700;
+    background: linear-gradient(90deg, #1A73E8 0%, #8E24AA 50%, #D81B60 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.2rem;
+    display: inline-block;
+}
+
+.gemini-subtitle {
+    font-size: 1.1rem;
+    color: #9aa0a6;
+    margin-bottom: 1.5rem;
+    font-weight: 400;
+}
+
+/* Barra de Seleção de Modelo/Modo estilo Pílulas do Gemini */
+.selector-container {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 8px 16px;
+    margin-bottom: 1.5rem;
+    backdrop-filter: blur(10px);
+}
+
+/* Cards de Sugestões de Perguntas Rápidas */
+.prompt-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 14px 18px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    min-height: 85px;
+}
+
+.prompt-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(66, 133, 244, 0.4);
+    transform: translateY(-2px);
+}
+
+/* Estilo para citações de fontes */
+.source-box {
+    border-left: 3px solid #1A73E8;
+    background: rgba(26, 115, 232, 0.05);
+    padding: 10px 14px;
+    border-radius: 0 10px 10px 0;
+    margin: 8px 0;
+}
+
+/* Disclaimer no rodapé estilo Gemini */
+.gemini-disclaimer {
+    text-align: center;
+    color: #80868b;
+    font-size: 0.75rem;
+    margin-top: 1rem;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # Inicializa os serviços
 @st.cache_resource
@@ -29,78 +107,43 @@ def get_academic_service():
 rag = get_rag_engine()
 academic = get_academic_service()
 
-# 1. Histórico do Chat em Tempo Real (Busca Multi-Bases)
-if "messages_live" not in st.session_state:
-    st.session_state.messages_live = [
-        {
-            "role": "assistant",
-            "content": "Olá, doutor(a)! Este é o **Modo de Pesquisa Viva Multi-Bases**.\n\nQualquer dúvida clínica que você enviar aqui será pesquisada simultaneamente no **PubMed (EUA)**, **SciELO (Brasil / USP / UNICAMP)** e **Europe PMC (Europa)**.\n\nO que você gostaria de investigar na literatura mundial e nacional hoje?",
-            "sources": [],
-            "keywords": None
-        }
-    ]
-
-# 2. Histórico do Chat do Acervo Pessoal (Apenas livros/PDFs curados)
-if "messages_acervo" not in st.session_state:
-    st.session_state.messages_acervo = [
-        {
-            "role": "assistant",
-            "content": "Olá, doutor(a)! Este é o **Modo Acervo Curado (Base Fechada)**.\n\nMinhas respostas aqui são limitadas **estritamente aos livros, manuais e PDFs que você adicionou** na sua biblioteca pessoal (ex: Malamed, Lindhe, Neville).\n\nQual dúvida você deseja consultar no seu acervo bibliográfico?",
-            "sources": []
-        }
-    ]
+# Inicializa o histórico de mensagens
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 if "search_results" not in st.session_state:
     st.session_state.search_results = []
 
-# BARRA LATERAL (SIDEBAR)
+# ==============================================================================
+# BARRA LATERAL (SIDEBAR — ACERVO & CONFIGURAÇÕES AVANÇADAS)
+# ==============================================================================
 with st.sidebar:
-    st.image("https://img.icons8.com/color/96/tooth.png", width=64)
-    st.title("🦷 OdontoIA")
-    st.caption("Odontologia Baseada em Evidências — Multi-Bases")
+    st.markdown("### ✨ OdontoMind")
+    st.caption("Odontologia Baseada em Evidências")
     st.divider()
 
-    # 1. Configurações da IA
-    st.subheader("⚙️ Configuração do Motor")
-    provider = st.selectbox(
-        "Provedor:",
-        options=["Gemini (Recomendado)", "OpenAI", "Groq"],
-        index=0
-    )
-
-    provider_map = {
-        "Gemini (Recomendado)": "gemini",
-        "OpenAI": "openai",
-        "Groq": "groq"
-    }
-    selected_provider = provider_map[provider]
-
-    # Verifica se há chave padrão no servidor (.env ou Streamlit Secrets) sem exibi-la
-    has_system_key = bool(resolve_api_key(selected_provider))
-
+    # Status da Chave Oficial (Nunca exibe o valor secreto)
+    has_system_key = bool(resolve_api_key("gemini"))
     if has_system_key:
-        st.success("🟢 Chave padrão ativa no sistema")
+        st.success("🟢 Chave padrão do sistema ativa")
     else:
         st.warning("⚠️ Nenhuma chave padrão detectada")
 
-    # Campo opcional para o usuário usar chave própria (NUNCA exibe a chave padrão)
+    # Substituição por chave pessoal
     custom_key_input = st.text_input(
         "Substituir por chave pessoal (opcional):",
         value="",
         type="password",
-        placeholder="Cole sua chave aqui se desejar...",
-        help="Deixe em branco para usar a chave padrão do sistema sem precisar configurar nada."
+        placeholder="Cole sua chave aqui...",
+        help="Deixe em branco para usar a chave padrão do sistema."
     )
-
-    if custom_key_input:
+    active_key = custom_key_input if custom_key_input.strip() else None
+    if active_key:
         st.caption("🔑 Utilizando sua chave personalizada para esta sessão.")
-        active_key = custom_key_input
-    else:
-        active_key = None
 
     st.divider()
 
-    # Monitor de Limite e Consumo Diário (Google Gemini Free Tier)
+    # Monitor de Consumo de Cota Diária
     usage = get_today_usage()
     used_today = usage.get("requests_today", 0)
     daily_limit = usage.get("daily_limit", 1500)
@@ -112,374 +155,279 @@ with st.sidebar:
     st.progress(progress_val)
     st.caption(f"**Consultas realizadas hoje:** `{used_today}` / `{daily_limit}`")
     st.caption(f"**Restantes hoje:** `{remaining}` consultas")
-    st.caption(f"⚡ **Capacidade por minuto:** até {rpm_limit} requisições/min")
+    st.caption(f"⚡ **Capacidade:** até {rpm_limit} requisições/min")
 
     st.divider()
 
-    # Filtro de Repositório Padrão
-    st.subheader("🌐 Repositórios Científicos Ativos")
-    selected_repo = st.radio(
-        "Bases de pesquisa ao vivo:",
-        options=[
-            ("🌐 Todas as Bases (PubMed + SciELO + Europe PMC)", "all"),
-            ("🇧🇷 SciELO / Literatura Brasileira (USP, UNESP)", "scielo"),
-            ("🇺🇸 PubMed Central (EUA / NLM)", "pubmed"),
-            ("🇪🇺 Europe PMC (Europa / Cochrane)", "europe_pmc")
-        ],
-        format_func=lambda x: x[0],
-        index=0
-    )[1]
-
-    st.divider()
-
-    # Métricas do Acervo
+    # Gestão do Acervo Local
     stats = rag.get_stats()
-    st.subheader("📊 Seu Acervo Local")
-    st.metric(label="Trechos Clínicos Salvos", value=stats["total_chunks"])
-    col_m1, col_m2 = st.columns(2)
-    with col_m1:
+    st.subheader("📚 Seu Acervo Permanente")
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
         st.metric(label="PDFs / Livros", value=stats["total_files"])
-    with col_m2:
+    with col_s2:
         st.metric(label="Artigos Salvos", value=stats["total_articles"])
+
+    uploaded_files = st.file_uploader(
+        "Adicionar livros em PDF (ex: Malamed, Neville):",
+        type=["pdf"],
+        accept_multiple_files=True
+    )
+    if uploaded_files:
+        if st.button("📥 Indexar PDFs no Acervo", type="primary", use_container_width=True):
+            total_added = 0
+            pbar = st.progress(0)
+            for idx, uploaded_file in enumerate(uploaded_files):
+                save_path = os.path.join(DOCUMENTS_PATH, uploaded_file.name)
+                with open(save_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+                count = rag.add_pdf(save_path)
+                total_added += count
+                pbar.progress((idx + 1) / len(uploaded_files))
+            st.success(f"{len(uploaded_files)} PDF(s) indexado(s) com sucesso!")
+            st.rerun()
 
     if stats["total_chunks"] > 0:
         if st.button("🗑️ Limpar Acervo Local", use_container_width=True):
             rag.clear_database()
             st.session_state.search_results = []
-            st.warning("Acervo local limpo!")
+            st.warning("Acervo limpo!")
             st.rerun()
 
     st.divider()
-    with st.expander("🎓 Comparativo Científico para o TCC"):
+    with st.expander("🎓 Ficha Técnica para o TCC"):
         st.markdown("""
-        **Bases Científicas Integradas:**
-        - **PubMed Central (EUA):** Padrão mundial biomédico.
-        - **SciELO Brasil:** Produção das melhores faculdades nacionais (USP, UNICAMP, UNESP, SBPqO).
-        - **Europe PMC:** Acesso aberto europeu e revisões sistemáticas da Cochrane.
-        - **Acervo Fechado:** Livros adotados na graduação (Malamed, Neville, Lindhe).
+        **Nome do Sistema:** OdontoMind  
+        **Classificação:** Agente de Suporte à Decisão Clínica (*Agentic RAG*)  
+        **Bases Integradas:** PubMed Central (EUA), SciELO Brasil, Europe PMC  
+        **Arquitetura:** Ingestão de texto completo em XML/JSON com fatiamento vetorial local e citações literais.
         """)
 
-# CABEÇALHO PRINCIPAL
-st.markdown("""
-# 🦷 OdontoIA — Inteligência Artificial Multi-Bases
-Consulta odontológica de alta precisão com suporte a **PubMed Central (EUA)**, **SciELO (Brasil)**, **Europe PMC** e **Livros de Referência**.
-""")
-
-# ABAS DO SISTEMA
-tab_live, tab_curado, tab_coletor, tab_arquivos = st.tabs([
-    "🌐 Chat 1: Busca Multi-Bases (Ao Vivo)",
-    "📚 Chat 2: Meu Acervo Curado (Livros & PDFs)",
-    "🔍 Coletor Científico Manual",
-    "📂 Gerenciar Livros e PDFs"
-])
-
 # ==============================================================================
-# ABA 1: CHAT COM BUSCA MULTI-BASES EM TEMPO REAL
+# ÁREA PRINCIPAL DO CHAT ESTILO GOOGLE GEMINI
 # ==============================================================================
-with tab_live:
-    st.info("💡 **Pesquisa Ao Vivo:** Sua pergunta é pesquisada simultaneamente no **PubMed Central (EUA)**, **SciELO (Brasil)** e **Europe PMC**. A IA lê os artigos mais recentes, sintetiza a conduta clínica e transcreve os trechos exatos entre aspas com links diretos!")
 
-    col_auto_save, _ = st.columns([2, 3])
-    with col_auto_save:
-        auto_save_articles = st.checkbox("📥 Salvar automaticamente os artigos encontrados no meu acervo permanente", value=False)
+# Cabeçalho Superior Minimalista
+col_h1, col_h2 = st.columns([8, 2])
+with col_h1:
+    st.markdown('<div class="gemini-title">OdontoMind ✨</div>', unsafe_allow_html=True)
+    st.markdown('<div class="gemini-subtitle">Inteligência Artificial Clínica e Científica para Odontologia</div>', unsafe_allow_html=True)
 
-    # Exibição do histórico Live
-    for msg in st.session_state.messages_live:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-            if msg.get("keywords"):
-                st.caption(f"🔍 Termos pesquisados nas bases: `{msg['keywords']}`")
-            if msg.get("model_used"):
-                st.caption(f"⚡ Modelo de IA: `{msg['model_used']}`")
+# BARRA DE SELEÇÃO DE MODELO E MODO DIRETO NO CHAT (Estilo Gemini)
+col_mode, col_model, col_repo = st.columns([4, 3, 3])
 
-            if msg.get("sources"):
-                with st.expander(f"📖 Artigos Científicos Consultados ({len(msg['sources'])} trechos)"):
-                    for idx, src in enumerate(msg["sources"], 1):
+with col_mode:
+    mode_option = st.selectbox(
+        "Modo de Operação:",
+        options=[
+            ("🌐 Pesquisa Ao Vivo (Multi-Bases Mundiais & Nacionais)", "live"),
+            ("📚 Meu Acervo Curado (Livros & PDFs Salvos)", "acervo")
+        ],
+        format_func=lambda x: x[0],
+        index=0,
+        help="Escolha se a IA deve buscar artigos em tempo real na literatura mundial ou consultar apenas seus livros locais."
+    )[1]
+
+with col_model:
+    model_choice = st.selectbox(
+        "Modelo de IA:",
+        options=[
+            ("⚡ Gemini 3.5 Flash-Lite (Ultrarrápido)", "gemini-3.5-flash-lite"),
+            ("🧠 Gemini 3.8 Flash (Mais Profundo)", "gemini-3.8-flash")
+        ],
+        format_func=lambda x: x[0],
+        index=0,
+        help="Selecione o motor generativo do Gemini para formular a resposta."
+    )[1]
+
+with col_repo:
+    if mode_option == "live":
+        repo_choice = st.selectbox(
+            "Bases Ativas:",
+            options=[
+                ("🌐 Todas (PubMed + SciELO + Europe PMC)", "all"),
+                ("🇧🇷 SciELO Brasil (USP, UNESP, SBPqO)", "scielo"),
+                ("🇺🇸 PubMed Central (EUA)", "pubmed"),
+                ("🇪🇺 Europe PMC (Europa / Cochrane)", "europe_pmc")
+            ],
+            format_func=lambda x: x[0],
+            index=0
+        )[1]
+    else:
+        st.selectbox("Base Ativa:", options=["📘 Acervo Fechado (Malamed, Livros)"], disabled=True)
+        repo_choice = "acervo"
+
+st.divider()
+
+# SEÇÃO DE BOAS-VINDAS E SUGESTÕES RÁPIDAS (Quando não há mensagens ainda)
+quick_prompt = None
+
+if len(st.session_state.messages) == 0:
+    st.markdown("""
+    <div style="margin: 2rem 0 1.5rem 0;">
+        <h2 style="font-weight: 600; font-size: 1.8rem; margin-bottom: 0.3rem;">Olá, Doutor(a).</h2>
+        <p style="color: #9aa0a6; font-size: 1.15rem;">O que vamos pesquisar na literatura odontológica hoje?</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("💉 Dose máxima de Lidocaína (Malamed)\n\nCálculo de mg/kg e teto por peso corporal", use_container_width=True):
+            quick_prompt = "Qual a dose máxima recomendada de lidocaína 2% com epinefrina 1:100.000 para um adulto hígido segundo a literatura de anestesiologia odontológica?"
+        if st.button("❤️ Profilaxia para Endocardite (AHA/CFO)\n\nPacientes de alto risco e protocolos antibióticos", use_container_width=True):
+            quick_prompt = "Qual o protocolo atual de profilaxia antibiótica para prevenção de endocardite infecciosa em procedimentos odontológicos e quais pacientes têm indicação formal?"
+
+    with col2:
+        if st.button("🤰 Anestesia local em Gestantes\n\nCondutas por trimestre, riscos e contraindicações", use_container_width=True):
+            quick_prompt = "Quais são as condutas e anestésicos locais de escolha para atendimento de gestantes na clínica odontológica?"
+        if st.button("🔬 Clorexidina na Mucosite Peri-implantar\n\nEvidências recentes de ensaios clínicos randomizados", use_container_width=True):
+            quick_prompt = "Qual a eficácia clínica da clorexidina no manejo da mucosite peri-implantar segundo os ensaios clínicos mais recentes?"
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+# EXIBIÇÃO DO HISTÓRICO DE MENSAGENS (ESTILO GEMINI)
+for msg in st.session_state.messages:
+    avatar_icon = "👤" if msg["role"] == "user" else "✨"
+    with st.chat_message(msg["role"], avatar=avatar_icon):
+        st.markdown(msg["content"])
+        
+        # Badges informativos no rodapé da mensagem
+        caption_items = []
+        if msg.get("mode"):
+            caption_items.append(f"Modo: `{msg['mode']}`")
+        if msg.get("model_used"):
+            caption_items.append(f"Modelo: `{msg['model_used']}`")
+        if msg.get("keywords"):
+            caption_items.append(f"Termos: `{msg['keywords']}`")
+        
+        if caption_items:
+            st.caption(" • ".join(caption_items))
+
+        # Drawer expansível de evidências consultadas
+        if msg.get("sources"):
+            with st.expander(f"📖 Evidências e Fontes Consultadas ({len(msg['sources'])} trechos)"):
+                for idx, src in enumerate(msg["sources"], 1):
+                    badge = src.get("repo_badge", "📘 Livro/Manual")
+                    if src.get("doc_type") == "article":
                         st.markdown(f"""
-                        **[Artigo {idx}]** {src.get('repo_badge', '')}  
+                        **[Fonte {idx}] {badge}**  
                         📄 **Título:** [{src.get('title')}]({src.get('url')})  
                         ✍️ **Autores:** {src.get('authors')} ({src.get('year')}) — *{src.get('journal')}*  
                         🔗 **DOI / Link:** [{src.get('doi') or src.get('url')}]({src.get('url')}) | **Seção:** `{src.get('page')}`  
                         > {src['text']}
                         """)
+                    else:
+                        st.markdown(f"""
+                        **[Fonte {idx}] {badge}** `Arquivo: {src['source']}` — **Página {src['page']}**
+                        > {src['text']}
+                        """)
 
-    live_query = st.chat_input("Faça sua pergunta clínica para pesquisar nas bases mundiais e nacionais...")
-    if live_query:
-        st.session_state.messages_live.append({"role": "user", "content": live_query})
-        with st.chat_message("user"):
-            st.markdown(live_query)
+# CAMPO DE ENTRADA DO CHAT (FLUTUANTE ESTILO GEMINI)
+user_query = st.chat_input("Pergunte ao OdontoMind sobre condutas, farmacologia ou artigos científicos...")
+if quick_prompt:
+    user_query = quick_prompt
 
-        with st.chat_message("assistant"):
-            with st.spinner("1/3 Consultando simultaneamente PubMed, SciELO Brasil e Europe PMC..."):
+if user_query:
+    # 1. Registra e exibe a mensagem do usuário
+    st.session_state.messages.append({"role": "user", "content": user_query})
+    with st.chat_message("user", avatar="👤"):
+        st.markdown(user_query)
+
+    # 2. Processamento do Agente OdontoMind
+    with st.chat_message("assistant", avatar="✨"):
+        keywords_used = None
+        sources_found = []
+        mode_label = "Ao Vivo (Multi-Bases)" if mode_option == "live" else "Acervo Curado (Livros)"
+
+        # MODO 1: PESQUISA MULTI-BASES AO VIVO
+        if mode_option == "live":
+            with st.spinner("1/2 Vasculhando simultaneamente PubMed, SciELO Brasil e Europe PMC..."):
                 search_data = academic.live_multi_search_and_prepare_context(
-                    question=live_query,
-                    source_filter=selected_repo,
+                    question=user_query,
+                    source_filter=repo_choice,
                     api_key=active_key,
                     max_articles=4
                 )
+                keywords_used = search_data.get("keywords")
+                articles_found = search_data.get("articles", [])
+                sources_found = search_data.get("chunks", [])
 
-            keywords_used = search_data.get("keywords")
-            articles_found = search_data.get("articles", [])
-            chunks_found = search_data.get("chunks", [])
-
-            if not articles_found:
-                answer = "⚠️ **Nenhum artigo de acesso aberto com alto nível de evidência foi localizado nas bases selecionadas para essa busca.**\n\nTente reformular com termos mais amplos ou selecione 'Todas as Bases' na barra lateral."
+            if not sources_found:
+                answer = "⚠️ **Nenhum artigo de acesso aberto com alto nível de evidência foi localizado nas bases para essa busca.**\n\nTente reformular com outros termos ou mude para o modo *Meu Acervo Curado*."
                 st.markdown(answer)
-                st.session_state.messages_live.append({
+                st.session_state.messages.append({
                     "role": "assistant",
                     "content": answer,
                     "sources": [],
-                    "keywords": keywords_used
+                    "keywords": keywords_used,
+                    "mode": mode_label
                 })
             else:
-                if auto_save_articles:
-                    for art in articles_found:
-                        art_chunks = academic.fetch_article_content(art)
-                        rag.add_article(art, art_chunks)
-
-                with st.spinner(f"2/3 Lendo {len(articles_found)} artigo(s) do Brasil e do exterior e formulando conduta clínica com trechos literais..."):
+                with st.spinner(f"2/2 Sintetizando evidências com citações exatas ({len(articles_found)} artigos consultados)..."):
                     response_data = generate_answer(
-                        query=live_query,
-                        context_chunks=chunks_found,
-                        provider=selected_provider,
-                        api_key=active_key
+                        query=user_query,
+                        context_chunks=sources_found,
+                        provider="gemini",
+                        api_key=active_key,
+                        model_name=model_choice
                     )
 
                 st.markdown(response_data["answer"])
-                if keywords_used:
-                    st.caption(f"🔍 Termos pesquisados nas bases: `{keywords_used}`")
-                if response_data.get("model_used"):
-                    st.caption(f"⚡ Modelo de IA: `{response_data['model_used']}`")
 
-                with st.expander(f"📖 Artigos Científicos Consultados ({len(chunks_found)} trechos)"):
-                    for idx, src in enumerate(chunks_found, 1):
+                caption_items = [f"Modo: `{mode_label}`", f"Modelo: `{response_data.get('model_used', model_choice)}`"]
+                if keywords_used:
+                    caption_items.append(f"Termos: `{keywords_used}`")
+                st.caption(" • ".join(caption_items))
+
+                with st.expander(f"📖 Evidências e Fontes Consultadas ({len(sources_found)} trechos)"):
+                    for idx, src in enumerate(sources_found, 1):
                         st.markdown(f"""
-                        **[Artigo {idx}]** {src.get('repo_badge', '')}  
+                        **[Artigo {idx}] {src.get('repo_badge', '')}**  
                         📄 **Título:** [{src.get('title')}]({src.get('url')})  
                         ✍️ **Autores:** {src.get('authors')} ({src.get('year')}) — *{src.get('journal')}*  
                         🔗 **DOI / Link:** [{src.get('doi') or src.get('url')}]({src.get('url')}) | **Seção:** `{src.get('page')}`  
                         > {src['text']}
                         """)
 
-                st.session_state.messages_live.append({
+                st.session_state.messages.append({
                     "role": "assistant",
                     "content": response_data["answer"],
-                    "sources": chunks_found,
+                    "sources": sources_found,
                     "keywords": keywords_used,
+                    "mode": mode_label,
                     "model_used": response_data.get("model_used")
                 })
 
-# ==============================================================================
-# ABA 2: CHAT COM MEU ACERVO CURADO (LIVROS & PDFS PESSOAIS)
-# ==============================================================================
-with tab_curado:
-    st.info("🔒 **Modo Acervo Curado (Base Fechada):** A IA consulta **apenas e exclusivamente** os livros e documentos salvos no seu acervo local (Malamed, Diretrizes do CFO, etc.). Se não constar nos seus livros, ela avisa explicitamente.")
-
-    col1, col2, col3 = st.columns(3)
-    quick_prompt_curado = None
-    with col1:
-        if st.button("💉 Dose Lidocaína (Malamed)", key="btn_q1", use_container_width=True):
-            quick_prompt_curado = "Qual a dose máxima recomendada de lidocaína 2% com epinefrina 1:100.000 para um adulto hígido segundo a literatura de anestesiologia odontológica?"
-    with col2:
-        if st.button("❤️ Profilaxia Endocardite (AHA/CFO)", key="btn_q2", use_container_width=True):
-            quick_prompt_curado = "Qual o protocolo atual de profilaxia antibiótica para prevenção de endocardite infecciosa em procedimentos odontológicos e quais pacientes têm indicação?"
-    with col3:
-        if st.button("🤰 Anestésicos em Gestantes", key="btn_q3", use_container_width=True):
-            quick_prompt_curado = "Quais são as condutas e anestésicos locais de escolha para atendimento de gestantes na clínica odontológica?"
-
-    for msg in st.session_state.messages_acervo:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-            if msg.get("model_used"):
-                st.caption(f"⚡ Modelo de IA: `{msg['model_used']}`")
-            
-            if msg.get("sources"):
-                with st.expander(f"📖 Trechos Consultados do Seu Acervo ({len(msg['sources'])} fontes)"):
-                    for idx, src in enumerate(msg["sources"], 1):
-                        if src.get("doc_type") == "article":
-                            st.markdown(f"""
-                            **[Fonte {idx} - Artigo do Acervo]**  
-                            📄 **Título:** [{src.get('title')}]({src.get('url')})  
-                            ✍️ **Autores:** {src.get('authors')} ({src.get('year')}) — *{src.get('journal')}*  
-                            🔗 **DOI / Link:** [{src.get('doi') or src.get('url')}]({src.get('url')}) | **Seção:** `{src.get('page')}`  
-                            > {src['text']}
-                            """)
-                        else:
-                            st.markdown(f"""
-                            **[Fonte {idx} - Livro/Manual]** `Arquivo: {src['source']}` — **Página {src['page']}**
-                            > {src['text']}
-                            """)
-
-    curado_query = st.chat_input("Consulte uma dúvida nos livros e PDFs do seu acervo...")
-    if quick_prompt_curado:
-        curado_query = quick_prompt_curado
-
-    if curado_query:
-        st.session_state.messages_acervo.append({"role": "user", "content": curado_query})
-        with st.chat_message("user"):
-            st.markdown(curado_query)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Pesquisando estritamente nos PDFs e livros do seu acervo..."):
-                relevant_excerpts = rag.search_relevant_excerpts(curado_query, top_k=4)
-
-                response_data = generate_answer(
-                    query=curado_query,
-                    context_chunks=relevant_excerpts,
-                    provider=selected_provider,
-                    api_key=active_key
-                )
-
-                st.markdown(response_data["answer"])
-
-                if response_data.get("model_used"):
-                    st.caption(f"⚡ Modelo de IA: `{response_data['model_used']}`")
-
-                if response_data.get("sources"):
-                    with st.expander(f"📖 Trechos Consultados do Seu Acervo ({len(response_data['sources'])} fontes)"):
-                        for idx, src in enumerate(response_data["sources"], 1):
-                            if src.get("doc_type") == "article":
-                                st.markdown(f"""
-                                **[Fonte {idx} - Artigo do Acervo]**  
-                                📄 **Título:** [{src.get('title')}]({src.get('url')})  
-                                ✍️ **Autores:** {src.get('authors')} ({src.get('year')}) — *{src.get('journal')}*  
-                                🔗 **DOI / Link:** [{src.get('doi') or src.get('url')}]({src.get('url')}) | **Seção:** `{src.get('page')}`  
-                                > {src['text']}
-                                """)
-                            else:
-                                st.markdown(f"""
-                                **[Fonte {idx} - Livro/Manual]** `Arquivo: {src['source']}` — **Página {src['page']}**
-                                > {src['text']}
-                                """)
-
-                st.session_state.messages_acervo.append({
-                    "role": "assistant",
-                    "content": response_data["answer"],
-                    "sources": response_data.get("sources", []),
-                    "model_used": response_data.get("model_used")
-                })
-
-# ==============================================================================
-# ABA 3: COLETOR CIENTÍFICO MANUAL
-# ==============================================================================
-with tab_coletor:
-    st.markdown("### 🔍 Coletor e Catálogo Multi-Bases (PubMed, SciELO Brasil, Europe PMC)")
-    st.write("Pesquise artigos nas bases de dados abertas para selecionar e salvar permanentemente no seu acervo.")
-
-    col_q, col_rep, col_num = st.columns([3, 2, 1])
-    with col_q:
-        search_query = st.text_input(
-            "Pesquisar Termo Clínico:",
-            placeholder="Ex: peri-implantite, clareamento sensibilidade, mepivacaina gestante"
-        )
-    with col_rep:
-        target_repo = st.selectbox(
-            "Base de Busca:",
-            options=[
-                ("🌐 Todas as Bases", "all"),
-                ("🇧🇷 SciELO Brasil (USP, UNICAMP)", "scielo"),
-                ("🇺🇸 PubMed Central (EUA)", "pubmed"),
-                ("🇪🇺 Europe PMC (Europa)", "europe_pmc")
-            ],
-            format_func=lambda x: x[0]
-        )[1]
-    with col_num:
-        max_articles = st.selectbox("Quantidade por Base:", options=[1, 2, 3], index=1)
-
-    if st.button("🔍 Buscar nas Bases Científicas", type="primary"):
-        if not search_query.strip():
-            st.warning("Por favor, digite um tema para pesquisar.")
+        # MODO 2: ACERVO CURADO FECHADO
         else:
-            with st.spinner("Pesquisando nas bases selecionadas..."):
-                results = academic.search_all_sources(
-                    query=search_query,
-                    source_filter=target_repo,
-                    max_per_source=max_articles,
-                    study_type="all_evidence",
-                    api_key=active_key
+            with st.spinner("Pesquisando estritamente nos PDFs e livros do seu acervo..."):
+                sources_found = rag.search_relevant_excerpts(user_query, top_k=4)
+                response_data = generate_answer(
+                    query=user_query,
+                    context_chunks=sources_found,
+                    provider="gemini",
+                    api_key=active_key,
+                    model_name=model_choice
                 )
-                st.session_state.search_results = results
-                if not results:
-                    st.warning("Nenhum artigo encontrado. Tente termos sinônimos ou selecione 'Todas as Bases'.")
 
-    if st.session_state.search_results:
-        st.write(f"### 📄 Artigos Encontrados ({len(st.session_state.search_results)})")
-        
-        if st.button("📥 Salvar TODOS os Artigos Encontrados no Acervo Permanente", use_container_width=True):
-            pbar = st.progress(0)
-            status_box = st.empty()
-            total_indexed = 0
-            for i, art in enumerate(st.session_state.search_results):
-                status_box.text(f"Indexando: {art['title'][:60]}...")
-                chunks = academic.fetch_article_content(art)
-                count = rag.add_article(art, chunks)
-                total_indexed += count
-                pbar.progress((i + 1) / len(st.session_state.search_results))
-            status_box.success(f"Concluído! {total_indexed} trechos científicos salvos no acervo permanente.")
-            st.rerun()
+            st.markdown(response_data["answer"])
+            st.caption(f"Modo: `{mode_label}` • Modelo: `{response_data.get('model_used', model_choice)}`")
 
-        st.divider()
+            if sources_found:
+                with st.expander(f"📖 Trechos Consultados do Seu Acervo ({len(sources_found)} fontes)"):
+                    for idx, src in enumerate(sources_found, 1):
+                        st.markdown(f"""
+                        **[Fonte {idx} - Livro/Manual]** `Arquivo: {src['source']}` — **Página {src['page']}**
+                        > {src['text']}
+                        """)
 
-        for i, art in enumerate(st.session_state.search_results):
-            with st.container():
-                st.markdown(f"#### {i+1}. {art.get('repo_badge', '')} [{art['title']}]({art['url']})")
-                st.markdown(f"**Autores:** {art['authors']} | **Revista:** *{art['journal']}* ({art['year']})")
-                badge_doi = f"**DOI:** [{art['doi']}](https://doi.org/{art['doi']})" if art.get("doi") else ""
-                st.markdown(f"**Origem:** `{art['source_repo']}` | {badge_doi}")
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": response_data["answer"],
+                "sources": sources_found,
+                "mode": mode_label,
+                "model_used": response_data.get("model_used")
+            })
 
-                if st.button(f"📥 Salvar este Artigo no Acervo", key=f"btn_art_multi_{art['id']}"):
-                    with st.spinner("Indexando..."):
-                        chunks = academic.fetch_article_content(art)
-                        added_count = rag.add_article(art, chunks)
-                        st.success(f"Salvo com sucesso! ({added_count} trechos mapeados no acervo permanente).")
-                        st.rerun()
-                st.divider()
-
-# ==============================================================================
-# ABA 4: GERENCIAR LIVROS E PDFS
-# ==============================================================================
-with tab_arquivos:
-    st.markdown("### 📂 Gerenciamento de Documentos e PDFs Locais")
-    
-    st.subheader("Subir Livros e Manuais em PDF")
-    uploaded_files = st.file_uploader(
-        "Selecione arquivos PDF de livros (ex: Malamed, Lindhe, Neville, Cohen):",
-        type=["pdf"],
-        accept_multiple_files=True
-    )
-
-    if uploaded_files:
-        if st.button("📥 Processar e Indexar PDFs Selecionados", type="primary"):
-            pbar = st.progress(0)
-            status_box = st.empty()
-            total_added = 0
-            for idx, uploaded_file in enumerate(uploaded_files):
-                status_box.text(f"Processando: {uploaded_file.name}...")
-                save_path = os.path.join(DOCUMENTS_PATH, uploaded_file.name)
-                with open(save_path, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-                
-                chunks_count = rag.add_pdf(save_path)
-                total_added += chunks_count
-                pbar.progress((idx + 1) / len(uploaded_files))
-
-            status_box.success(f"Sucesso! {len(uploaded_files)} PDF(s) indexado(s) com {total_added} trechos mapeados.")
-            st.rerun()
-
-    st.divider()
-
-    articles = rag.get_indexed_articles()
-    st.subheader(f"📄 Artigos Salvos no Acervo Permanente ({len(articles)})")
-    if not articles:
-        st.info("Nenhum artigo salvo manualmente ainda.")
-    else:
-        for art in articles:
-            with st.expander(f"🔬 {art.get('repo_badge', '')} {art.get('title')} ({art.get('year')})"):
-                st.markdown(f"**Autores:** {art.get('authors')}")
-                st.markdown(f"**Revista:** *{art.get('journal')}* | **Trechos:** `{art.get('chunks_count', '?')}`")
-                st.markdown(f"🔗 [Acessar Artigo]({art.get('url')})")
-
-    st.divider()
-    st.subheader(f"📘 Arquivos de Livros e Manuais no Disco ({len(stats['files'])})")
-    for f in stats["files"]:
-        st.write(f"- 📕 **{f}**")
+# Disclaimer discreto no rodapé estilo Gemini
+st.markdown('<div class="gemini-disclaimer">OdontoMind é um assistente acadêmico para Odontologia Baseada em Evidências. Sempre verifique as fontes primárias citadas antes de tomar condutas clínicas.</div>', unsafe_allow_html=True)

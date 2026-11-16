@@ -1,7 +1,7 @@
-# 🦷 OdontoIA — Inteligência Artificial Baseada em Evidências para Odontologia
+# ✨ OdontoMind — Inteligência Artificial Baseada em Evidências para Odontologia
 
 > **Projeto de Pesquisa & Trabalho de Conclusão de Curso (TCC)**  
-> Sistema RAG (*Retrieval-Augmented Generation*) para suporte à decisão clínica e consulta bibliográfica estritamente fundamentada em livros e artigos científicos de Odontologia, integrado com a API oficial do **PubMed Central (NCBI)**.
+> Sistema de Suporte à Decisão Clínica (*Agentic RAG*) com busca automatizada em tempo real no **PubMed Central (EUA)**, **SciELO Brasil** e **Europe PMC**, além de consulta estrita a livros e manuais clínicos.
 
 ---
 
@@ -9,8 +9,8 @@
 
 Um dos maiores problemas no uso de inteligências artificiais na saúde (como ChatGPT ou buscas no Google) é a ocorrência de **alucinações clínicas**: condutas terapêuticas desatualizadas, dosagens incorretas ou invenção de diretrizes inexistentes.
 
-A **OdontoIA** resolve isso por meio de **Odontologia Baseada em Evidências (OBE)**:
-1. **Sem alucinações:** A IA só responde utilizando trechos literais dos livros e artigos catalogados no acervo.
+O **OdontoMind** resolve isso por meio de **Odontologia Baseada em Evidências (OBE)**:
+1. **Sem alucinações:** A IA só responde utilizando trechos literais dos livros e artigos catalogados ou buscados ao vivo nas bases científicas.
 2. **Coletor Automatizado Multi-Bases (Open Access):**
    - 🇺🇸 **PubMed Central (EUA / NLM):** Padrão mundial biomédico.
    - 🇧🇷 **SciELO Brasil (USP, UNICAMP, UNESP, SBPqO):** Estudos nacionais e epidemiologia brasileira.
@@ -18,6 +18,7 @@ A **OdontoIA** resolve isso por meio de **Odontologia Baseada em Evidências (OB
 3. **Citação, Rastreabilidade e Comprovação Textual:**
    - **Trechos Literais Entre Aspas ("..."):** Toda resposta traz uma seção dedicada transcrevendo os fragmentos exatos utilizados do texto original.
    - **Localização Rígida:** Para livros, aponta arquivo e página exata; para artigos, aponta autores, ano, revista, base de dados (PubMed/SciELO/Europe PMC), seção clínica, DOI e link direto.
+4. **Interface Inspirada no Google Gemini:** Seletor de modo e modelo generativo diretamente no topo do chat, design limpo, responsivo e minimalista.
 4. **Curadoria do Aluno/Pesquisador:** Você escolhe o acervo padrão-ouro (Malamed, Lindhe, Neville, Cohen, Diretrizes CFO/ABO/AHA e revisões da Cochrane).
 
 ---
