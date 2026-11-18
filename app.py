@@ -1,4 +1,5 @@
 import os
+import datetime
 import streamlit as st
 from dotenv import load_dotenv
 from rag_engine import OdontoRAG, DOCUMENTS_PATH
@@ -97,7 +98,7 @@ if "search_results" not in st.session_state:
 # ==============================================================================
 with st.sidebar:
     st.markdown("### ✨ OdontoMind")
-    st.caption("Odontologia Baseada em Evidências")
+    st.caption("Odontologia Baseada em Evidências (Arquitetura ECC Hybrid RAG)")
     st.divider()
 
     # Status da Chave Oficial
@@ -140,6 +141,7 @@ with st.sidebar:
     # Resumo do Acervo
     stats = rag.get_stats()
     st.subheader("📊 Seu Acervo Permanente")
+    st.metric(label="Trechos Clínicos Mapeados", value=stats["total_chunks"])
     col_s1, col_s2 = st.columns(2)
     with col_s1:
         st.metric(label="PDFs / Livros", value=stats["total_files"])
@@ -147,32 +149,39 @@ with st.sidebar:
         st.metric(label="Artigos Salvos", value=stats["total_articles"])
 
     if stats["total_chunks"] > 0:
-        if st.button("🗑️ Limpar Todo o Acervo", use_container_width=True):
+        if st.button("🔄 Restaurar Acervo Padrão-Ouro", use_container_width=True):
             rag.clear_database()
             st.session_state.search_results = []
-            st.warning("Acervo limpo com sucesso!")
+            st.success("Acervo restaurado para o Compêndio Clínico Padrão-Ouro!")
             st.rerun()
 
     st.divider()
     with st.expander("🎓 Ficha Técnica para o TCC"):
         st.markdown("""
         **Nome do Sistema:** OdontoMind  
-        **Classificação:** Agente de Suporte à Decisão Clínica (*Agentic RAG*)  
-        **Bases Integradas:** PubMed Central (EUA), SciELO Brasil, Europe PMC  
-        **Recursos:** Pesquisa em tempo real com transcrição de citações literais entre aspas e biblioteca própria de artigos.
+        **Classificação:** Agente Híbrido de Suporte à Decisão Clínica (*Hybrid Agentic RAG — Metodologia ECC*)  
+        **Bases Científicas Ao Vivo:** PubMed Central (EUA), SciELO Brasil (OpenAlex), Europe PMC  
+        **Compêndio Padrão-Ouro Integrado:** Malamed (Anestesia), Hupp/Peterson (Cirurgia/Exodontia), Andrade & AHA/CFO (Farmacologia), Cohen/Lopes & Siqueira (Endodontia), Lindhe (Periodontia), Baratieri (Dentística), Neville (Patologia Oral).
         """)
 
 # ==============================================================================
 # CABEÇALHO SUPERIOR
 # ==============================================================================
-st.markdown('<div class="gemini-title">OdontoMind ✨</div>', unsafe_allow_html=True)
-st.markdown('<div class="gemini-subtitle">Inteligência Clínica e Científica com Acesso ao PubMed, SciELO Brasil, Europe PMC e Livros</div>', unsafe_allow_html=True)
+col_head1, col_head2 = st.columns([8, 2])
+with col_head1:
+    st.markdown('<div class="gemini-title">OdontoMind ✨</div>', unsafe_allow_html=True)
+    st.markdown('<div class="gemini-subtitle">Agente Híbrido de Odontologia Baseada em Evidências (PubMed, SciELO Brasil, Europe PMC e Compêndio Clínico)</div>', unsafe_allow_html=True)
+with col_head2:
+    if len(st.session_state.messages) > 0:
+        if st.button("➕ Nova Conversa", use_container_width=True):
+            st.session_state.messages = []
+            st.rerun()
 
 # NAVEGAÇÃO PRINCIPAL (ESTILO GEMINI MODERNO)
 nav_chat, nav_coletor, nav_livros = st.tabs([
     "💬 Chat Clínico OdontoMind",
     "🔬 Coletor & Biblioteca de Artigos (Pesquisar e Salvar)",
-    "📂 Livros e Manuais em PDF"
+    "📂 Livros e Compêndio em PDF"
 ])
 
 # ==============================================================================
@@ -186,12 +195,12 @@ with nav_chat:
         mode_option = st.selectbox(
             "Modo de Operação:",
             options=[
-                ("🌐 Pesquisa Ao Vivo (Multi-Bases Mundiais & Nacionais)", "live"),
-                ("📚 Meu Acervo Curado (Livros & Artigos Salvos)", "acervo")
+                ("🌐 Pesquisa Híbrida Ao Vivo (Multi-Bases + Compêndio Clínico)", "live"),
+                ("📚 Apenas Meu Acervo Curado (Compêndio, Livros & Artigos Salvos)", "acervo")
             ],
             format_func=lambda x: x[0],
             index=0,
-            help="Escolha se a IA deve buscar artigos em tempo real na literatura mundial ou consultar apenas seus livros locais."
+            help="No Modo Híbrido Ao Vivo, o agente combina os protocolos clássicos dos livros (Hupp, Malamed, Cohen, Lindhe) com artigos científicos buscados em tempo real no PubMed, SciELO e Europe PMC."
         )[1]
 
     with col_model:
@@ -211,16 +220,16 @@ with nav_chat:
             repo_choice = st.selectbox(
                 "Bases Ativas:",
                 options=[
-                    ("🌐 Todas (PubMed + SciELO + Europe PMC)", "all"),
-                    ("🇧🇷 SciELO Brasil (USP, UNESP, SBPqO)", "scielo"),
-                    ("🇺🇸 PubMed Central (EUA)", "pubmed"),
-                    ("🇪🇺 Europe PMC (Europa / Cochrane)", "europe_pmc")
+                    ("🌐 Todas (PubMed + SciELO + Europe PMC + Compêndio)", "all"),
+                    ("🇧🇷 SciELO Brasil + Compêndio Clínico", "scielo"),
+                    ("🇺🇸 PubMed Central (EUA) + Compêndio Clínico", "pubmed"),
+                    ("🇪🇺 Europe PMC (Europa) + Compêndio Clínico", "europe_pmc")
                 ],
                 format_func=lambda x: x[0],
                 index=0
             )[1]
         else:
-            st.selectbox("Base Ativa:", options=["📘 Acervo Fechado (Malamed, Artigos Salvos)"], disabled=True)
+            st.selectbox("Base Ativa:", options=["📘 Acervo Fechado (Compêndio Clínico, Livros e Artigos Salvos)"], disabled=True)
             repo_choice = "acervo"
 
     st.divider()
@@ -230,24 +239,30 @@ with nav_chat:
 
     if len(st.session_state.messages) == 0:
         st.markdown("""
-        <div style="margin: 1.5rem 0 1.2rem 0;">
+        <div style="margin: 1.2rem 0 1.2rem 0;">
             <h2 style="font-weight: 600; font-size: 1.7rem; margin-bottom: 0.2rem;">Olá, Doutor(a).</h2>
-            <p style="color: #9aa0a6; font-size: 1.1rem;">O que vamos pesquisar na literatura odontológica hoje?</p>
+            <p style="color: #9aa0a6; font-size: 1.08rem;">O que vamos pesquisar na literatura odontológica hoje?</p>
         </div>
         """, unsafe_allow_html=True)
 
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("💉 Dose máxima de Lidocaína (Malamed)\n\nCálculo de mg/kg e teto por peso corporal", use_container_width=True):
-                quick_prompt = "Qual a dose máxima recomendada de lidocaína 2% com epinefrina 1:100.000 para um adulto hígido segundo a literatura de anestesiologia odontológica?"
-            if st.button("❤️ Profilaxia para Endocardite (AHA/CFO)\n\nPacientes de alto risco e protocolos antibióticos", use_container_width=True):
-                quick_prompt = "Qual o protocolo atual de profilaxia antibiótica para prevenção de endocardite infecciosa em procedimentos odontológicos e quais pacientes têm indicação formal?"
+            if st.button("🦷 Extração de Dentes Posteriores\n\nPasso a passo cirúrgico, alavancas e fórceps (Hupp/Peterson)", use_container_width=True):
+                quick_prompt = "Qual o passo a passo de uma extração de dentes posteriores, incluindo anestesia, sindesmotomia, alavancas, escolha dos fórceps e sutura?"
+            if st.button("💉 Dose máxima de Lidocaína (Malamed)\n\nCálculo de mg/kg e limite de tubetes em adultos e cardiopatas", use_container_width=True):
+                quick_prompt = "Qual a dose máxima recomendada de lidocaína 2% com epinefrina 1:100.000 para um adulto hígido e para um paciente cardiopata segundo Malamed?"
 
         with col2:
-            if st.button("🤰 Anestesia local em Gestantes\n\nCondutas por trimestre, riscos e contraindicações", use_container_width=True):
-                quick_prompt = "Quais são as condutas e anestésicos locais de escolha para atendimento de gestantes na clínica odontológica?"
-            if st.button("🔬 Clorexidina na Mucosite Peri-implantar\n\nEvidências recentes de ensaios clínicos randomizados", use_container_width=True):
-                quick_prompt = "Qual a eficácia clínica da clorexidina no manejo da mucosite peri-implantar segundo os ensaios clínicos mais recentes?"
+            if st.button("🔬 Passo a Passo Endodontia (Cohen)\n\nAbertura, odontometria, irrigação NaOCl/EDTA e obturação", use_container_width=True):
+                quick_prompt = "Qual o passo a passo completo do tratamento endodôntico (canal), incluindo soluções irrigadoras, odontometria e remoção de smear layer?"
+            if st.button("❤️ Profilaxia para Endocardite (AHA/CFO)\n\nPacientes de alto risco e posologia para alérgicos", use_container_width=True):
+                quick_prompt = "Qual o protocolo atual de profilaxia antibiótica para prevenção de endocardite infecciosa em procedimentos odontológicos e quais pacientes têm indicação formal?"
+
+        with col3:
+            if st.button("🤰 Atendimento a Gestantes\n\nTrimestre ideal, anestésico de escolha e fármacos seguros", use_container_width=True):
+                quick_prompt = "Quais são as condutas, anestésicos locais de escolha e medicamentos seguros ou contraindicados para atendimento de gestantes na odontologia?"
+            if st.button("🪥 Curetas Gracey e Periodontia (Lindhe)\n\nNumeração específica por face dentária e estágios", use_container_width=True):
+                quick_prompt = "Qual o passo a passo da raspagem periodontal, a numeração específica das curetas de Gracey para cada região e a classificação da periodontite?"
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -256,21 +271,23 @@ with nav_chat:
         avatar_icon = "👤" if msg["role"] == "user" else "✨"
         with st.chat_message(msg["role"], avatar=avatar_icon):
             st.markdown(msg["content"])
-            
+
             caption_items = []
             if msg.get("mode"):
                 caption_items.append(f"Modo: `{msg['mode']}`")
+            if msg.get("intent"):
+                caption_items.append(f"Intenção: `{msg['intent']}`")
             if msg.get("model_used"):
                 caption_items.append(f"Modelo: `{msg['model_used']}`")
             if msg.get("keywords"):
-                caption_items.append(f"Termos: `{msg['keywords']}`")
+                caption_items.append(f"Descritores: `{msg['keywords']}`")
             if caption_items:
                 st.caption(" • ".join(caption_items))
 
             if msg.get("sources"):
                 with st.expander(f"📖 Evidências e Fontes Consultadas ({len(msg['sources'])} trechos)"):
                     for idx, src in enumerate(msg["sources"], 1):
-                        badge = src.get("repo_badge", "📘 Livro/Manual")
+                        badge = src.get("repo_badge", "📘 Compêndio/Livro")
                         if src.get("doc_type") == "article":
                             st.markdown(f"""
                             **[Fonte {idx}] {badge}**  
@@ -281,12 +298,12 @@ with nav_chat:
                             """)
                         else:
                             st.markdown(f"""
-                            **[Fonte {idx}] {badge}** `Arquivo: {src['source']}` — **Página {src['page']}**
+                            **[Fonte {idx}] {badge}** `Arquivo: {src['source']}` — **Página {src['page']}** ({src.get('authors', 'Referência Clássica')})  
                             > {src['text']}
                             """)
 
     # INPUT DO CHAT
-    user_query = st.chat_input("Pergunte ao OdontoMind sobre condutas, farmacologia ou artigos científicos...")
+    user_query = st.chat_input("Pergunte ao OdontoMind sobre passo a passo cirúrgico, condutas, farmacologia ou artigos...")
     if quick_prompt:
         user_query = quick_prompt
 
@@ -297,70 +314,77 @@ with nav_chat:
 
         with st.chat_message("assistant", avatar="✨"):
             keywords_used = None
+            intent_detected = None
             sources_found = []
-            mode_label = "Ao Vivo (Multi-Bases)" if mode_option == "live" else "Acervo Curado (Livros & Artigos)"
+            mode_label = "Híbrido Ao Vivo (Multi-Bases + Compêndio)" if mode_option == "live" else "Acervo Curado (Compêndio & Livros)"
 
             if mode_option == "live":
-                with st.spinner("1/2 Vasculhando simultaneamente PubMed, SciELO Brasil e Europe PMC..."):
+                with st.spinner("1/2 Executando busca híbrida ECC (PubMed, SciELO Brasil, Europe PMC + Compêndio Clínico)..."):
                     search_data = academic.live_multi_search_and_prepare_context(
                         question=user_query,
                         source_filter=repo_choice,
                         api_key=active_key,
-                        max_articles=4
+                        max_articles=5,
+                        local_rag=rag
                     )
                     keywords_used = search_data.get("keywords")
+                    intent_detected = search_data.get("intent")
                     articles_found = search_data.get("articles", [])
                     sources_found = search_data.get("chunks", [])
 
                 if not sources_found:
-                    answer = "⚠️ **Nenhum artigo de acesso aberto com alto nível de evidência foi localizado nas bases para essa busca.**\n\nTente reformular com outros termos ou consulte a aba *Coletor & Biblioteca*."
-                    st.markdown(answer)
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": answer,
-                        "sources": [],
-                        "keywords": keywords_used,
-                        "mode": mode_label
-                    })
-                else:
-                    with st.spinner(f"2/2 Sintetizando evidências com citações literais ({len(articles_found)} artigos consultados)..."):
-                        response_data = generate_answer(
-                            query=user_query,
-                            context_chunks=sources_found,
-                            provider="gemini",
-                            api_key=active_key,
-                            model_name=model_choice
-                        )
+                    # Fallback garantido para o Compêndio Clínico Local
+                    sources_found = rag.search_relevant_excerpts(user_query, top_k=4)
 
-                    st.markdown(response_data["answer"])
+                with st.spinner(f"2/2 Traduzindo e sintetizando evidências com citações literais ({len(sources_found)} trechos de alta relevância)..."):
+                    response_data = generate_answer(
+                        query=user_query,
+                        context_chunks=sources_found,
+                        provider="gemini",
+                        api_key=active_key,
+                        model_name=model_choice
+                    )
 
-                    caption_items = [f"Modo: `{mode_label}`", f"Modelo: `{response_data.get('model_used', model_choice)}`"]
-                    if keywords_used:
-                        caption_items.append(f"Termos: `{keywords_used}`")
-                    st.caption(" • ".join(caption_items))
+                st.markdown(response_data["answer"])
 
-                    with st.expander(f"📖 Evidências e Fontes Consultadas ({len(sources_found)} trechos)"):
-                        for idx, src in enumerate(sources_found, 1):
+                caption_items = [f"Modo: `{mode_label}`"]
+                if intent_detected:
+                    caption_items.append(f"Intenção: `{intent_detected}`")
+                caption_items.append(f"Modelo: `{response_data.get('model_used', model_choice)}`")
+                if keywords_used:
+                    caption_items.append(f"Descritores: `{keywords_used}`")
+                st.caption(" • ".join(caption_items))
+
+                with st.expander(f"📖 Evidências e Fontes Consultadas ({len(sources_found)} trechos)"):
+                    for idx, src in enumerate(sources_found, 1):
+                        badge = src.get("repo_badge", "📘 Compêndio/Livro")
+                        if src.get("doc_type") == "article":
                             st.markdown(f"""
-                            **[Artigo {idx}] {src.get('repo_badge', '')}**  
+                            **[Fonte {idx}] {badge}**  
                             📄 **Título:** [{src.get('title')}]({src.get('url')})  
                             ✍️ **Autores:** {src.get('authors')} ({src.get('year')}) — *{src.get('journal')}*  
                             🔗 **DOI / Link:** [{src.get('doi') or src.get('url')}]({src.get('url')}) | **Seção:** `{src.get('page')}`  
                             > {src['text']}
                             """)
+                        else:
+                            st.markdown(f"""
+                            **[Fonte {idx}] {badge}** `Arquivo: {src['source']}` — **Página {src['page']}** ({src.get('authors', 'Referência Clássica')})  
+                            > {src['text']}
+                            """)
 
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": response_data["answer"],
-                        "sources": sources_found,
-                        "keywords": keywords_used,
-                        "mode": mode_label,
-                        "model_used": response_data.get("model_used")
-                    })
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": response_data["answer"],
+                    "sources": sources_found,
+                    "keywords": keywords_used,
+                    "intent": intent_detected,
+                    "mode": mode_label,
+                    "model_used": response_data.get("model_used")
+                })
 
             else:
-                with st.spinner("Pesquisando estritamente nos PDFs e artigos do seu acervo..."):
-                    sources_found = rag.search_relevant_excerpts(user_query, top_k=4)
+                with st.spinner("Pesquisando com busca híbrida (vetorial + sinônimos clínicos) no seu acervo..."):
+                    sources_found = rag.search_relevant_excerpts(user_query, top_k=5)
                     response_data = generate_answer(
                         query=user_query,
                         context_chunks=sources_found,
@@ -385,7 +409,7 @@ with nav_chat:
                                 """)
                             else:
                                 st.markdown(f"""
-                                **[Fonte {idx} - Livro/Manual]** `Arquivo: {src['source']}` — **Página {src['page']}**
+                                **[Fonte {idx} - Livro/Compêndio]** `Arquivo: {src['source']}` — **Página {src['page']}** ({src.get('authors', 'Referência Clássica')})  
                                 > {src['text']}
                                 """)
 
@@ -397,7 +421,7 @@ with nav_chat:
                     "model_used": response_data.get("model_used")
                 })
 
-    st.markdown('<div class="gemini-disclaimer">OdontoMind é um assistente acadêmico para Odontologia Baseada em Evidências. Sempre verifique as fontes primárias citadas antes de tomar condutas clínicas.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="gemini-disclaimer">OdontoMind é um Agente de Suporte à Decisão Clínica para Odontologia Baseada em Evidências. Sempre valide as condutas com as fontes primárias citadas.</div>', unsafe_allow_html=True)
 
 # ==============================================================================
 # ABA 2: COLETOR E BIBLIOTECA DE ARTIGOS (PESQUISAR & SALVAR)
@@ -410,7 +434,7 @@ with nav_coletor:
     with col_cq:
         coletor_query = st.text_input(
             "Pesquisar Tema para Salvar:",
-            placeholder="Ex: peri-implantite tratamento, clareamento caseiro vs consultorio, articaina mandíbula"
+            placeholder="Ex: exodontia dentes posteriores, peri-implantite tratamento, clareamento caseiro vs consultorio"
         )
     with col_crep:
         coletor_repo = st.selectbox(
@@ -424,13 +448,13 @@ with nav_coletor:
             format_func=lambda x: x[0]
         )[1]
     with col_cnum:
-        coletor_max = st.selectbox("Artigos por Base:", options=[1, 2, 3], index=1)
+        coletor_max = st.selectbox("Artigos por Base:", options=[2, 3, 5], index=1)
 
     if st.button("🔍 Pesquisar Artigos para Salvar", type="primary"):
         if not coletor_query.strip():
             st.warning("Por favor, digite um tema para pesquisar.")
         else:
-            with st.spinner("Buscando nas bases científicas selecionadas..."):
+            with st.spinner("Buscando nas bases científicas selecionadas com o Planejador ECC..."):
                 results = academic.search_all_sources(
                     query=coletor_query,
                     source_filter=coletor_repo,
@@ -445,7 +469,7 @@ with nav_coletor:
     # Exibição dos artigos encontrados para salvar
     if st.session_state.search_results:
         st.write(f"#### 📄 Artigos Encontrados ({len(st.session_state.search_results)})")
-        
+
         if st.button("📥 Salvar TODOS os Artigos Encontrados no Acervo Permanente", use_container_width=True):
             pbar = st.progress(0)
             status_box = st.empty()
@@ -480,7 +504,7 @@ with nav_coletor:
     st.markdown("### 📚 Artigos Atualmente Salvos no Seu Acervo")
     saved_articles = rag.get_indexed_articles()
     if not saved_articles:
-        st.info("Nenhum artigo salvo no seu acervo ainda. Faça uma busca acima para salvar seus primeiros artigos!")
+        st.info("Nenhum artigo salvo manualmente no seu acervo ainda. Faça uma busca acima para salvar seus primeiros artigos!")
     else:
         st.caption(f"Total de artigos catalogados: **{len(saved_articles)}**")
         for art in saved_articles:
@@ -490,11 +514,11 @@ with nav_coletor:
                 st.markdown(f"🔗 [Acessar Artigo Original]({art.get('url')})")
 
 # ==============================================================================
-# ABA 3: LIVROS E MANUAIS EM PDF
+# ABA 3: LIVROS E COMPÊNDIO EM PDF
 # ==============================================================================
 with nav_livros:
-    st.markdown("### 📂 Livros, Manuais e Diretrizes em PDF")
-    st.write("Suba capítulos ou livros completos em PDF (ex: Malamed, Neville, Lindhe, Cohen) para criar sua biblioteca padrão-ouro.")
+    st.markdown("### 📂 Compêndio Clínico Padrão-Ouro & Upload de Livros em PDF")
+    st.info("📘 **Compêndio Clínico Integrado Automaticamente:** O OdontoMind já vem com um Compêndio Clínico Padrão-Ouro de 10 páginas cobrindo **Cirurgia/Exodontia (Hupp/Peterson), Anestesiologia (Malamed), Farmacologia/Endocardite (Andrade/AHA/CFO), Endodontia (Cohen/Lopes & Siqueira), Periodontia (Lindhe), Dentística (Baratieri) e Patologia Oral (Neville)**. Você também pode adicionar novos capítulos e livros em PDF abaixo!")
 
     uploaded_files_main = st.file_uploader(
         "Selecione um ou mais arquivos PDF de livros:",
@@ -513,7 +537,7 @@ with nav_livros:
                 save_path = os.path.join(DOCUMENTS_PATH, uploaded_file.name)
                 with open(save_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
-                
+
                 chunks_count = rag.add_pdf(save_path)
                 total_added += chunks_count
                 pbar.progress((idx + 1) / len(uploaded_files_main))

@@ -3,51 +3,50 @@ from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from usage_tracker import increment_usage
 
-# Carrega variáveis de ambiente do .env automaticamente
 load_dotenv()
 
-# Garante o uso dos certificados SSL do Windows para evitar erros de conexão
 try:
     import truststore
     truststore.inject_into_ssl()
 except ImportError:
     pass
 
-ODONTO_SYSTEM_PROMPT = """Você é a OdontoIA, uma assistente de inteligência artificial de alta precisão clínica voltada exclusivamente para Odontologia Baseada em Evidências (OBE).
-Sua missão é responder às dúvidas clínicas de estudantes e cirurgiões-dentistas com base ESTRITAMENTE nos fragmentos de literatura científica, artigos e livros fornecidos no contexto.
+ODONTO_SYSTEM_PROMPT = """Você é o OdontoMind, um Agente de Inteligência Artificial de Suporte à Decisão Clínica voltado exclusivamente para Odontologia Baseada em Evidências (OBE).
+Sua missão é responder às dúvidas clínicas e cirúrgicas de estudantes de odontologia e cirurgiões-dentistas com base nos fragmentos de livros-texto (Compêndio Clínico: Malamed, Hupp/Peterson, Andrade, Cohen, Lindhe, Baratieri, Neville) e artigos científicos (PubMed, SciELO Brasil, Europe PMC) fornecidos no contexto.
 
-DIRETRIZES FUNDAMENTAIS DE SEGURANÇA E CONDUTA CLÍNICA:
-1. NUNCA INVENTE informações, dosagens, contraindicações ou protocolos.
-2. Se a informação necessária NÃO constar de forma clara no contexto fornecido, declare explicitamente:
-   "⚠️ Esta informação não foi encontrada no acervo bibliográfico indexado. Por segurança clínica, consulte a literatura de referência antes de tomar qualquer conduta."
-3. ESTRUTURAÇÃO OBRIGATÓRIA DA RESPOSTA:
-   Toda resposta deve seguir RIGOROSAMENTE as 3 seções abaixo:
+DIRETRIZES DE TRADUÇÃO CLÍNICA, SÍNTESE E SEGURANÇA (PADRÃO ECC):
+1. CAPACIDADE BILÍNGUE E SÍNTESE INTELIGENTE:
+   - Muitos artigos do PubMed e Europe PMC estão em INGLÊS ou abordam o tema sob termos técnicos correlatos (ex: 'tooth extraction', 'exodontia', 'surgical technique', 'forceps', 'luxation', 'flap', 'scaling').
+   - Você DEVE traduzir, interpretar e sintetizar ativamente todas as informações clínicas aplicáveis dos fragmentos em inglês e português para entregar uma explicação didática, completa e bem estruturada em português do Brasil.
+   - Se a pergunta pedir um "passo a passo" ou "protocolo", organize os dados encontrados nos fragmentos em etapas sequenciais numeradas (Passo 1, Passo 2, Passo 3...) com os instrumentos, fármacos ou manobras citados nas fontes.
+2. RIGOR ANTI-ALUCINAÇÃO:
+   - Utilize apenas condutas, dosagens, instrumentos e dados respaldados pelos fragmentos fornecidos.
+   - Somente caso NENHUM dos fragmentos fornecidos tenha absolutamente nenhuma relação com o tema odontológico perguntado, informe quais dados estão disponíveis nos trechos recuperados e oriente quais termos pesquisar.
+3. ESTRUTURAÇÃO OBRIGATÓRIA DA RESPOSTA (3 SEÇÕES):
 
    ### 🩺 Conduta Clínica / Resposta Direta
-   Explique a resposta de forma clara, didática, profissional e objetiva.
+   Apresente a resposta clínica de forma clara, didática e aplicável (se for procedimento ou cirurgia, estruture o passo a passo operatório numerado, incluindo instrumental, técnica e cuidados).
 
-   ### 📚 Fundamentação e Nível de Evidência
-   Explique os mecanismos, justificativas científicas, pontos de atenção ou contraindicações citando os autores, obras e revistas.
+   ### 📚 Fundamentação Científica e Nível de Evidência
+   Explique as justificativas anatômicas, farmacológicas ou biológicas, contraindicações e pontos de atenção citando nominalmente os autores, livros ou periódicos do contexto. Indique também o **Grau de Confiança da Evidência** (Alto / Moderado) com base nas fontes consultadas.
 
    ### 📝 Trechos Literais Utilizados (Comprovação Textual)
-   Transcreva OBRIGATORIAMENTE ENTRE ASPAS ("...") os trechos EXATOS que você utilizou do texto para comprovar sua resposta, acompanhados da localização exata de onde cada um foi retirado:
-   - Para Livros/Manuais: *"Trecho exato copiado do contexto"* — **[Localização: Nome do Arquivo/Livro, Página X]**
-   - Para Artigos PubMed/SciELO/Europe PMC: *"Trecho exato copiado do contexto"* — **[Localização: Autores (Ano), Revista, Seção X, Link/DOI]**
-
-4. Fidelidade Absoluta: Não altere o texto dentro das aspas. Ele deve ser a cópia literal dos dados que constam no contexto.
+   Transcreva OBRIGATORIAMENTE ENTRE ASPAS ("...") os trechos EXATOS que você utilizou do contexto para comprovar sua resposta, acompanhados da localização exata:
+   - Para Livros/Compêndio: *"Trecho exato copiado do contexto"* — **[Localização: Nome do Arquivo/Livro, Página X]**
+   - Para Artigos Científicos (PubMed/SciELO/Europe PMC): *"Trecho exato copiado do contexto"* — **[Localização: Autores (Ano), Revista, Seção X, Link/DOI]**
+   - *Regra de Ouro Bilíngue:* Se o trecho literal original estiver em inglês, mantenha o trecho original entre aspas e adicione logo abaixo: `↳ Tradução técnica: "..."` em português para facilitar a leitura e apresentação no TCC!
 """
 
 def resolve_api_key(provider: str, custom_key: Optional[str] = None) -> str:
     """Obtém a chave de API respeitando custom_key > env > streamlit secrets."""
     if custom_key and custom_key.strip():
         return custom_key.strip()
-    
+
     env_var = f"{provider.upper()}_API_KEY"
     key = os.getenv(env_var, "").strip()
     if key:
         return key
 
-    # Tenta ler do Streamlit Secrets se estiver na nuvem
     try:
         import streamlit as st
         if hasattr(st, "secrets"):
@@ -68,20 +67,19 @@ def generate_answer(
     model_name: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Gera a resposta clínica fundamentada usando o LLM escolhido com citações literais entre aspas.
+    Gera a resposta clínica fundamentada usando o LLM escolhido com tradução clínica e citações literais entre aspas.
     """
     if not context_chunks:
         return {
-            "answer": "⚠️ **Nenhum documento relevante encontrado no acervo.**\n\nPor favor, adicione artigos pelo buscador do PubMed ou faça upload de livros em PDF na barra lateral para que a IA possa fundamentar a resposta.",
+            "answer": "⚠️ **Nenhum documento relevante encontrado no acervo.**\n\nPor favor, tente termos clínicos mais diretos ou utilize o modo *Pesquisa Híbrida Ao Vivo*.",
             "sources": []
         }
 
-    # Monta o contexto textual distinguindo livros e artigos científicos
     context_text = ""
     for i, chunk in enumerate(context_chunks, 1):
         if chunk.get("doc_type") == "article":
             context_text += (
-                f"\n--- [FONTE {i} - ARTIGO CIENTÍFICO]:\n"
+                f"\n--- [FONTE {i} - ARTIGO CIENTÍFICO ({chunk.get('repo_badge', 'Artigo')})]:\n"
                 f"Título: {chunk.get('title', '')}\n"
                 f"Autores: {chunk.get('authors', '')} ({chunk.get('year', '')})\n"
                 f"Revista: {chunk.get('journal', '')}\n"
@@ -92,18 +90,18 @@ def generate_answer(
             )
         else:
             context_text += (
-                f"\n--- [FONTE {i} - LIVRO/MANUAL]:\n"
-                f"Arquivo: {chunk.get('source', '')} | Página: {chunk.get('page', '')}\n"
+                f"\n--- [FONTE {i} - COMPÊNDIO CLÍNICO / LIVRO-TEXTO]:\n"
+                f"Arquivo: {chunk.get('source', '')} | Referência: {chunk.get('authors', '')} | Página: {chunk.get('page', '')}\n"
                 f"Conteúdo:\n{chunk['text']}\n"
             )
 
     user_prompt = f"""PERGUNTA CLÍNICA DO DENTISTA/ESTUDANTE:
 {query}
 
-FRAGMENTOS DA LITERATURA DE ODONTOLOGIA EXTRAÍDOS DO SEU ACERVO:
+FRAGMENTOS DA LITERATURA DE ODONTOLOGIA (LIVROS-TEXTO E ARTIGOS CIENTÍFICOS):
 {context_text}
 
-Instrução: Responda à pergunta seguindo estritamente a estrutura solicitada no sistema, incluindo OBRIGATORIAMENTE a seção '### 📝 Trechos Literais Utilizados (Comprovação Textual)' com os fragmentos exatos ENTRE ASPAS ("...") e suas respectivas localizações (arquivo, página, seção e link)."""
+Instrução: Sintetize e traduza todo o conhecimento aplicável dos fragmentos acima para responder com precisão máxima à pergunta em português, estruturando nas 3 seções obrigatórias ('### 🩺 Conduta Clínica / Resposta Direta', '### 📚 Fundamentação Científica e Nível de Evidência' e '### 📝 Trechos Literais Utilizados (Comprovação Textual)')."""
 
     # 1. Provedor Google Gemini (com fallback inteligente de modelos)
     if provider.lower() == "gemini":
@@ -142,11 +140,10 @@ Instrução: Responda à pergunta seguindo estritamente a estrutura solicitada n
                         contents=user_prompt,
                         config=types.GenerateContentConfig(
                             system_instruction=ODONTO_SYSTEM_PROMPT,
-                            temperature=0.1
+                            temperature=0.15
                         )
                     )
                     if response and response.text:
-                        # Incrementa o contador diário de uso
                         increment_usage()
                         return {
                             "answer": response.text,
@@ -172,7 +169,7 @@ Instrução: Responda à pergunta seguindo estritamente a estrutura solicitada n
                 "answer": "⚠️ **Chave de API da OpenAI não configurada.**\n\nInsira sua chave na barra lateral.",
                 "sources": context_chunks
             }
-        
+
         try:
             from openai import OpenAI
             client = OpenAI(api_key=key)
@@ -183,7 +180,7 @@ Instrução: Responda à pergunta seguindo estritamente a estrutura solicitada n
                     {"role": "system", "content": ODONTO_SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.1
+                temperature=0.15
             )
             increment_usage()
             return {
@@ -218,7 +215,7 @@ Instrução: Responda à pergunta seguindo estritamente a estrutura solicitada n
                     {"role": "system", "content": ODONTO_SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.1
+                temperature=0.15
             )
             increment_usage()
             return {

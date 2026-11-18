@@ -1,67 +1,37 @@
-# ✨ OdontoMind — Inteligência Artificial Baseada em Evidências para Odontologia
+# ✨ OdontoMind — Agente Híbrido de Inteligência Artificial para Odontologia Baseada em Evidências
 
 > **Projeto de Pesquisa & Trabalho de Conclusão de Curso (TCC)**  
-> Sistema de Suporte à Decisão Clínica (*Agentic RAG*) com busca automatizada em tempo real no **PubMed Central (EUA)**, **SciELO Brasil** e **Europe PMC**, além de consulta estrita a livros e manuais clínicos.
+> Sistema de Suporte à Decisão Clínica (*Hybrid Agentic RAG — Metodologia ECC*) com busca automatizada em tempo real no **PubMed Central (EUA)**, **SciELO Brasil (OpenAlex)** e **Europe PMC**, combinada a um **Compêndio Clínico Padrão-Ouro** de livros-texto clássicos da Odontologia.
 
 ---
 
 ## 🎯 Por que este projeto é relevante para o TCC?
 
-Um dos maiores problemas no uso de inteligências artificiais na saúde (como ChatGPT ou buscas no Google) é a ocorrência de **alucinações clínicas**: condutas terapêuticas desatualizadas, dosagens incorretas ou invenção de diretrizes inexistentes.
+Um dos maiores desafios no uso de inteligências artificiais na área da saúde é a ocorrência de **alucinações clínicas** ou falhas de recuperação quando o estudante faz perguntas práticas de clínica/cirurgia (ex: *"Qual o passo a passo de uma extração de dentes posteriores?"*) e as bases retornam apenas artigos em inglês técnico sem traduzir ou sintetizar o protocolo.
 
-O **OdontoMind** resolve isso por meio de **Odontologia Baseada em Evidências (OBE)**:
-1. **Sem alucinações:** A IA só responde utilizando trechos literais dos livros e artigos catalogados ou buscados ao vivo nas bases científicas.
-2. **Coletor Automatizado Multi-Bases (Open Access):**
-   - 🇺🇸 **PubMed Central (EUA / NLM):** Padrão mundial biomédico.
-   - 🇧🇷 **SciELO Brasil (USP, UNICAMP, UNESP, SBPqO):** Estudos nacionais e epidemiologia brasileira.
-   - 🇪🇺 **Europe PMC (Europa):** Acesso aberto europeu e revisões sistemáticas da Cochrane.
-3. **Citação, Rastreabilidade e Comprovação Textual:**
-   - **Trechos Literais Entre Aspas ("..."):** Toda resposta traz uma seção dedicada transcrevendo os fragmentos exatos utilizados do texto original.
-   - **Localização Rígida:** Para livros, aponta arquivo e página exata; para artigos, aponta autores, ano, revista, base de dados (PubMed/SciELO/Europe PMC), seção clínica, DOI e link direto.
-4. **Interface Inspirada no Google Gemini:** Seletor de modo e modelo generativo diretamente no topo do chat, design limpo, responsivo e minimalista.
-4. **Curadoria do Aluno/Pesquisador:** Você escolhe o acervo padrão-ouro (Malamed, Lindhe, Neville, Cohen, Diretrizes CFO/ABO/AHA e revisões da Cochrane).
+O **OdontoMind** resolve isso por meio da arquitetura **ECC Hybrid Agentic RAG**:
+1. **Planejador Bilíngue de Consultas (MeSH & DeCS):** Converte perguntas naturais em português para descritores clínicos estruturados em inglês (PubMed/Europe PMC) e português limpo sem *stopwords* (SciELO Brasil), identificando automaticamente se a intenção é um **Protocolo Clínico / Passo a Passo** ou uma **Síntese de Evidências / Comparação**.
+2. **Reranking Seccional e Semântico de Artigo Completo:** Em vez de ler apenas a introdução dos artigos, o motor avalia todas as seções do XML/texto completo e prioriza **Métodos, Técnica Cirúrgica, Resultados, Discussão e Conclusões**.
+3. **Fusão Híbrida (Multi-Bases Ao Vivo + Compêndio Clínico Padrão-Ouro):** Combina em tempo real os artigos científicos mundiais com o **Compêndio Clínico Padrão-Ouro** integrado ao sistema:
+   - **Cirurgia Bucomaxilofacial (Hupp, Ellis & Tucker — Peterson):** Passo a passo da exodontia de posteriores e anteriores, sindesmotomia, alavancas, numeração de fórceps (150, 151, 17, 18R, 18L, 23, 65, 69), odontosecção, osteotomia, alveolite e comunicação bucossinusal.
+   - **Anestesiologia Local (Stanley F. Malamed):** Cálculo de doses máximas por peso e teto absoluto, limites em cardiopatas e passo a passo dos bloqueios regionais maxilares e mandibulares.
+   - **Farmacologia e Profilaxia (Eduardo Dias de Andrade & AHA/CFO):** Profilaxia da endocardite infecciosa, protocolos analgésicos, anti-inflamatórios e antibióticos, além de atendimento a gestantes.
+   - **Endodontia (Cohen & Lopes e Siqueira):** Diagnóstico pulpar/periapical e passo a passo do tratamento endodôntico (acesso, odontometria, PQM, NaOCl, EDTA/PUI e obturação).
+   - **Periodontia e Implantodontia (Jan Lindhe & AAP/EFP):** Classificação em Estágios e Graus, terapia periodontal e numeração específica das curetas de Gracey (1-2 a 13-14).
+   - **Dentística Restauradora (Baratieri & Anusavice):** Condicionamento ácido seletivo, sistemas adesivos, inserção incremental (Fator-C) e proteção do complexo dentino-pulpar.
+   - **Estomatologia e Patologia Oral (Neville):** Passo a passo da biópsia incisional vs excisional e diagnóstico diferencial de cistos e tumores odontogênicos.
+4. **Tradução Clínica Ativa e Comprovação Textual Bilíngue:**
+   - **Trechos Literais Entre Aspas (`"..."`):** Toda resposta transcreve os fragmentos originais exatos utilizados e sua localização (Livro/Página ou Autores/Ano/Revista/Seção/DOI).
+   - **Tradução Técnica Imediata:** Quando o trecho citado vem de um artigo em inglês do PubMed ou Europe PMC, o sistema apresenta o trecho original entre aspas seguido de sua tradução técnica em português.
 
 ---
 
 ## 🚀 Como Iniciar a Aplicação
 
-### Modo Rápido (1 Clique):
-Basta dar dois cliques no arquivo **`run.bat`** na pasta do projeto. O navegador abrirá automaticamente com a interface.
+### Modo Rápido (1 Clique no Windows):
+Dê dois cliques no arquivo **`run.bat`** na pasta do projeto.
 
 ### Modo Linha de Comando:
 ```powershell
 .venv\Scripts\streamlit.exe run app.py
 ```
-
----
-
-## 💡 Como Usar a Interface
-
-1. **Obter chave de IA gratuita:**
-   - Na barra lateral, selecione **Gemini (Recomendado)**.
-   - Crie uma chave gratuita em segundos no [Google AI Studio](https://aistudio.google.com/app/apikey) e cole no campo.
-2. **Buscar Artigos Científicos no PubMed:**
-   - Acesse a aba **"🌐 Coletor PubMed (Open Access)"**.
-   - Digite o tema (ex: *peri-implantite*, *clareamento sensibilidade*, *profilaxia endocardite*).
-   - Escolha o nível de evidência (Revisões Sistemáticas / Ensaios Clínicos).
-   - Clique em **"Indexar este Artigo"** ou **"Indexar TODOS"**. O sistema baixa o texto completo e fatiará em trechos com DOI e links.
-3. **Adicionar seus próprios livros:**
-   - Na aba **"📚 Gerenciar Acervo & PDFs"**, envie PDFs de capítulos dos seus livros e clique em processar.
-4. **Fazer Perguntas Clínicas:**
-   - Na aba **"💬 Chat Clínico"**, faça perguntas ou use as perguntas rápidas e veja a IA responder citando as fontes exatas!
-
----
-
-## 🔬 Estrutura Científica e Metodológica para o seu TCC
-
-* **Título Sugerido:**  
-  *Desenvolvimento e Validação de um Sistema de Recuperação Aumentada por Geração (RAG) Integrado à API do PubMed para Tomada de Decisão Clínica Baseada em Evidências na Odontologia.*
-* **Objetivo Geral:**  
-  Desenvolver um protótipo de IA especialista alimentado exclusivamente por literatura odontológica validada (Open Access PubMed + Manuais Clínicos) e mensurar sua acurácia clínica contra modelos genéricos.
-* **Metodologia de Validação (Avaliação por Painel):**  
-  1. Elaborar um banco com 30 a 50 questões clínicas desafiadoras (ex: Anestesiologia em cardiopatas, farmacologia em gestantes, conduta em peri-implantite, profilaxia antibiótica).
-  2. Submeter as perguntas à OdontoIA e a uma IA genérica comercial (ex: ChatGPT padrão).
-  3. Painel avaliador cego com 2 professores/especialistas avaliando:
-     - **Precisão da conduta** (Correta / Incorreta / Parcial).
-     - **Rastreabilidade bibliográfica** (Presença de autor, ano, DOI/página).
-     - **Taxa de alucinação** (Frequência de erros factuais ou condutas inventadas).
