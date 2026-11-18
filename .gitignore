@@ -8,3 +8,5 @@ __pycache__/
 
 # Cache do ChromaDB e modelos locais temporários
 chroma_db/
+
+documents/usage_stats.json
